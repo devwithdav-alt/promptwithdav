@@ -1,0 +1,22 @@
+@tailwind base;@tailwind components;@tailwind utilities;
+
+:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:7rem}html{background:#fff}body{font-family:Lato,system-ui,sans-serif;background:transparent;color:#1A1A1A}
+@keyframes up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes mq{to{transform:translateX(-50%)}}
+.up{animation:up .6s cubic-bezier(.2,.7,.2,1) both}
+.mq{display:flex;width:max-content;animation:mq 40s linear infinite}.mq.fast{animation-duration:26s}.mq:hover{animation-play-state:paused}
+.slide{position:relative;overflow:hidden;isolation:isolate}
+.slide::before{content:"";position:absolute;inset:0;background:#1A1A1A;transform:translateX(-101%);transition:transform .35s ease;z-index:-1}
+.slide:hover::before{transform:none}
+.inp{width:100%;border:1px solid #1A1A1A;background:#1A1A1A;color:#fff;caret-color:#DC2626;border-radius:.75rem;padding:.8rem 1rem;outline:none;transition:.2s}.inp::placeholder{color:#9ca3af}.inp:-webkit-autofill{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 40px #1A1A1A inset}select.inp option{background:#1A1A1A;color:#fff}
+.inp:focus{border-color:#DC2626;box-shadow:0 0 0 3px #dc262622}
+a:focus-visible,button:focus-visible{outline:2px solid #DC2626;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+details>summary{cursor:pointer;list-style:none}details>summary::-webkit-details-marker{display:none}
+details[open] .chev{transform:rotate(180deg)}
+@keyframes ld{from{transform:translateX(-100%)}to{transform:translateX(200%)}}@keyframes drift{to{transform:scale(1.08) translate(-1%,1%)}}
+#pre{position:fixed;inset:0;z-index:100;background:#fff;display:grid;place-items:center;transition:opacity .5s,visibility .5s}#pre.done{opacity:0;visibility:hidden}
+#bg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+#bg i{position:absolute;inset:-3%;background-size:cover;background-position:center;filter:grayscale(1) contrast(1.1);opacity:var(--o,.14);mix-blend-mode:multiply;animation:drift 40s ease-in-out infinite alternate}
+#bg::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 50% at 88% 0%,rgba(220,38,38,.16),transparent 70%),radial-gradient(50% 40% at 0% 100%,rgba(26,26,26,.09),transparent 70%),linear-gradient(rgba(255,255,255,0),rgba(255,255,255,.8) 90%)}
