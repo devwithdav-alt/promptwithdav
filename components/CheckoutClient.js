@@ -6,9 +6,15 @@ import { useCart, useCfg } from "./Providers";
 import { sb } from "@/lib/supabase";
 import { safe, money } from "@/lib/util";
 import Icon from "./Icon";
+function loadPaystack() {
+  return new Promise((res, rej) => {
+    if (window.PaystackPop) return res();
+    const s = document.createElement("script"); s.src = "https://js.paystack.co/v2/inline.js"; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
 export default function CheckoutClient() {
   const cfg = useCfg(), { cart, total, remove, clear, toast } = useCart(), r = useRouter(), last = useRef(0);
-  const G = cfg.pay.filter((g) => g.on && g.type !== "paystack"), [pay, setPay] = useState(G[0]?.id), [busy, setBusy] = useState(false), [wa, setWa] = useState("");
+  const G = cfg.pay.filter((g) => g.on && (g.type !== "paystack" || /^pk_(test|live)_/.test(g.key || ""))), [pay, setPay] = useState(G[0]?.id), [busy, setBusy] = useState(false), [wa, setWa] = useState("");
   async function submit(e) {
     e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); if (f.website) return;
     if (Date.now() - last.current < 5e3) return toast("Please wait a moment before trying again");
@@ -19,6 +25,17 @@ export default function CheckoutClient() {
     const { data, error } = await sb.functions.invoke("create-order", { body: { items: cart.map((i) => ({ id: i.id, qty: i.qty })), email: f.email, wa, tg: f.tg || "", gateway: pay, hp: "" } });
     setBusy(false);
     if (error || !data || data.error) return toast((data && data.error) || "Could not create your order. Try again.");
+    const g = G.find((x) => x.id === pay);
+    if (g?.type === "paystack") {
+      try { await loadPaystack(); } catch { return toast("Could not load Paystack. Check your connection and try again."); }
+      new window.PaystackPop().newTransaction({
+        key: g.key, email: data.email, amount: data.amount, currency: "GHS", ref: data.reference, metadata: { whatsapp: data.wa },
+        onSuccess: () => { clear(); r.push("/order?ref=" + data.reference); },
+        onCancel: () => toast("Payment cancelled. Your cart is still here."),
+        onError: (e) => toast((e && e.message) || "Payment error. Please try again."),
+      });
+      return;
+    }
     clear(); r.push("/order?ref=" + data.reference);
   }
   return (
@@ -36,7 +53,7 @@ export default function CheckoutClient() {
           <div className="mt-4 space-y-3">{cart.map((i) => <div key={i.id} className="flex gap-3 items-center"><img src={safe(i.image)} alt="" className="w-14 h-14 rounded-lg object-cover" /><div className="flex-1 text-sm"><b>{i.title}</b><br /><span className="text-neutral-500">Qty {i.qty} · {money(cfg.cur, i.price * i.qty)}</span></div><button type="button" onClick={() => remove(i.id)} aria-label={`Remove ${i.title}`} className="p-1 text-neutral-400 hover:text-crim"><Icon n="x" c="w-4 h-4" /></button></div>)}
             {!cart.length && <p className="text-neutral-500">Your cart is empty. <Link className="text-crim font-bold" href="/shop">Find a prompt</Link></p>}</div>
           <div className="flex justify-between border-t border-neutral-200 mt-5 pt-4 text-lg font-black"><span>Total</span><span>{money(cfg.cur, total)}</span></div>
-          <button disabled={!cart.length || !pay || busy} className="slide w-full mt-5 bg-crim text-white font-bold py-4 rounded-full disabled:opacity-50">{busy ? "Placing order…" : cfg.co.btn}</button></div></aside>
+          <button disabled={!cart.length || !pay || busy} className="slide w-full mt-5 bg-crim text-white font-bold py-4 rounded-full disabled:opacity-50">{busy ? "Placing order…" : G.find((x) => x.id === pay)?.type === "paystack" ? "Place Order via Paystack" : cfg.co.btn}</button></div></aside>
       </form></section>
   );
 }
