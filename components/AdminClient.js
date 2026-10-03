@@ -24,7 +24,7 @@ function Field({ label, v, on, type = "text", opts, up }) {
   else if (type === "lines" || type === "csv") el = <textarea key={JSON.stringify(v)} className={cls} rows={type === "csv" ? 2 : 4} defaultValue={(v || []).join(type === "csv" ? ", " : "\n")} onBlur={(e) => on(e.target.value.split(type === "csv" ? "," : "\n").map((x) => x.trim()).filter(Boolean))} />;
   else if (type === "area" || type === "raw") el = <textarea className={cls} rows={type === "raw" ? 8 : 3} value={v || ""} onChange={(e) => on(e.target.value)} />;
   else el = <input className={cls} value={v ?? ""} inputMode={type === "num" ? "decimal" : undefined} onChange={(e) => on(e.target.value)} />;
-  return <div><label className="block text-sm font-bold">{label}{el}</label>{up && <label className="inline-block mt-1 text-sm text-crim font-bold cursor-pointer hover:underline">Upload image<input type="file" accept="image/*" hidden onChange={async (e) => { const u = await up(e.target.files[0]); if (u) on(type === "lines" ? [...(v || []), u] : u); e.target.value = ""; }} /></label>}</div>;
+  return <div><label className="block text-sm font-bold">{label}{el}</label>{up && <label className="inline-block mt-1 text-sm text-crim font-bold cursor-pointer hover:underline">{up.accept ? "Upload image or video" : "Upload image"}<input type="file" accept={up.accept || "image/*"} hidden onChange={async (e) => { const u = await up(e.target.files[0]); if (u) on(type === "lines" ? [...(v || []), u] : u); e.target.value = ""; }} /></label>}</div>;
 }
 export default function AdminClient() {
   const [st, setSt] = useState("loading"), [cfg, setCfg] = useState(null), [prods, setProds] = useState([]), [del, setDel] = useState([]), [tab, setTab] = useState("General"),
@@ -63,6 +63,17 @@ export default function AdminClient() {
     const { error } = await sb.storage.from("media").upload(path, b, { contentType: b.type, cacheControl: "31536000" });
     if (error) { say(error.message); return; } say("Uploaded. Press Save changes."); return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
   };
+  const upMedia = async (f) => {
+    if (f && f.type.startsWith("video/")) {
+      if (!/^video\/(mp4|webm)$/.test(f.type) || f.size > 20e6) { say("Video must be MP4 or WebM and under 20MB. For longer videos, paste a YouTube link instead."); return; }
+      say("Uploading video…");
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${f.type === "video/webm" ? "webm" : "mp4"}`;
+      const { error } = await sb.storage.from("media").upload(path, f, { contentType: f.type, cacheControl: "31536000" });
+      if (error) { say(error.message); return; } say("Video uploaded. Press Save changes."); return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
+    }
+    return upFor(1000)(f);
+  };
+  upMedia.accept = "image/*,video/mp4,video/webm";
   if (st === "loading") return <p className="p-20 text-center font-bold">Loading…</p>;
   if (st === "nodb") return <p className="p-20 text-center font-bold">Backend not connected. Add your Supabase keys to the environment variables.</p>;
   if (st === "out") { const locked = lock > Date.now(); return (
@@ -99,7 +110,7 @@ export default function AdminClient() {
           <button onClick={(e) => { e.preventDefault(); if (sure("p" + p.id)) { setDel((d) => [...d, p.id]); setProds((ps) => ps.filter((x) => x.id !== p.id)); } }} className="text-crim text-sm hover:underline">{conf === "p" + p.id ? "Click again to confirm" : "Delete"}</button></summary>
           <div className="grid sm:grid-cols-2 gap-3 mt-4">{q("title", "Title")}{q("price", "Price", "num")}{q("old", "Old price (optional)", "num")}{q("model", "AI model", "sel", MODELS.map((m) => m[0]))}{q("cat", "Category", "sel", CATS.map((m) => m[0]))}{q("trending", "Show in trending", "bool")}
             <div className="sm:col-span-2">{q("desc", "Description", "area")}</div>{q("tags", "Tags (comma separated)", "csv")}{q("inside", "What is inside (one per line)", "lines")}
-            <div className="sm:col-span-2">{q("images", "Images (one link per line)", "lines", null, upFor(1000))}</div><div className="sm:col-span-2">{q("secret", "Prompt text delivered after payment (private)", "raw")}</div></div></details>; })],
+            <div className="sm:col-span-2">{q("images", "Media: images and video previews (one link per line; put a cover image first)", "lines", null, upMedia)}</div><div className="sm:col-span-2">{q("secret", "Prompt text delivered after payment (private)", "raw")}</div></div></details>; })],
     Payments: () => [<p key="n" className="text-sm text-neutral-500">Paste your Paystack PUBLIC key (starts with pk_) and tick Active to switch Paystack on. Never paste a secret key here. Add manual methods (bank transfer, MoMo number) below.</p>,
       ...cfg.pay.map((g, i) => <div key={g.id} className="rounded-2xl border border-neutral-200 p-4 grid gap-3">{c(`pay.${i}.on`, "Active", "bool")}{c(`pay.${i}.label`, "Name")}{c(`pay.${i}.sub`, "Short note")}
         {g.type === "paystack" ? c(`pay.${i}.key`, "Paystack public key (pk_test_… or pk_live_…)") : c(`pay.${i}.note`, "Instructions shown after the order", "area")}

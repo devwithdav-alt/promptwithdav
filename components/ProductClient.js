@@ -4,16 +4,26 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, useCfg } from "./Providers";
 import { MODELS } from "@/lib/defaults";
-import { safe, money } from "@/lib/util";
+import { safe, money, mediaInfo } from "@/lib/util";
 import Icon from "./Icon";
 export default function ProductClient({ p }) {
   const { add } = useCart(), cfg = useCfg(), r = useRouter(), [img, setImg] = useState(0), [tab, setTab] = useState(0);
+  const M = (p.media || p.images).map(mediaInfo), cur = M[img] || M[0];
   const T = [<><p>{p.desc}</p><h3 className="font-bold mt-4">What’s inside</h3><ul className="list-disc pl-5 mt-2 space-y-1">{p.inside.map((t, i) => <li key={i}>{t}</li>)}</ul></>,
     <p>Model: <b>{p.model}</b><br />Type: <b>{p.cat}</b><br />Format: plain text, instant delivery</p>, <p>No reviews yet. Be the first to review {p.title}.</p>];
   return (
     <div className="grid md:grid-cols-2 gap-10">
-      <div><img src={safe(p.images[img])} alt={p.title} className="w-full aspect-square object-cover rounded-3xl up" />
-        <div className="grid grid-cols-4 gap-3 mt-3">{p.images.map((s, i) => <img key={i} src={safe(s)} alt="" onClick={() => setImg(i)} className={`aspect-square object-cover rounded-xl cursor-pointer hover:ring-2 ring-crim transition ${i === img ? "ring-2" : ""}`} />)}</div></div>
+      <div>
+        {cur.type === "image" && <img src={safe(cur.src)} alt={p.title} className="w-full aspect-square object-cover rounded-3xl up" />}
+        {cur.type === "video" && <video key={cur.src} src={safe(cur.src)} controls playsInline preload="metadata" poster={safe(p.images[0])} className="w-full aspect-square object-contain bg-ink rounded-3xl" />}
+        {cur.type === "youtube" && <iframe key={cur.src} src={cur.src} title={`${p.title} preview`} allow="encrypted-media; picture-in-picture" allowFullScreen className="w-full aspect-square rounded-3xl bg-ink" />}
+        <div className="grid grid-cols-4 gap-3 mt-3">{M.map((m, i) => (
+          <button key={i} onClick={() => setImg(i)} aria-label={`Show ${m.type === "image" ? "image" : "video"} ${i + 1}`} className={`relative aspect-square overflow-hidden rounded-xl hover:ring-2 ring-crim transition ${i === img ? "ring-2" : ""}`}>
+            {m.type === "image" && <img src={safe(m.src)} alt="" className="w-full h-full object-cover" />}
+            {m.type === "youtube" && <img src={m.thumb} alt="" className="w-full h-full object-cover" />}
+            {m.type === "video" && <video src={safe(m.src) + "#t=0.5"} muted playsInline preload="metadata" className="w-full h-full object-cover bg-ink" />}
+            {m.type !== "image" && <span className="absolute inset-0 grid place-items-center"><span className="w-8 h-8 rounded-full bg-crim text-white grid place-items-center"><Icon n="video" c="w-4 h-4" /></span></span>}
+          </button>))}</div></div>
       <div>
         <Link href={`/shop?m=${encodeURIComponent(p.model)}`} className="inline-flex items-center gap-2 bg-neutral-100 hover:bg-crim hover:text-white transition rounded-full px-4 py-2 font-bold"><Icon n={MODELS.find((m) => m[0] === p.model)?.[1] || "chat"} c="w-4 h-4" />{p.model} Prompts</Link>
         <h1 className="text-3xl sm:text-4xl font-black mt-4">{p.title}</h1><p className="mt-3 text-neutral-600">{p.desc}</p>
